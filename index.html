@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Kharch — Voice Expense Logger</title>
+<style>
+  :root{
+    --ink:#1c2321;
+    --paper:#f6f3ec;
+    --rupee:#2f6f4f;
+    --rupee-dark:#1f4d36;
+    --clay:#b5502f;
+    --line:#d9d3c4;
+    --muted:#7a7468;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Georgia', 'Iowan Old Style', serif;
+    min-height:100vh;
+    padding:0 0 40px;
+  }
+  .topbar{
+    padding:22px 20px 14px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; justify-content:space-between;
+  }
+  .brand{
+    font-size:22px; font-weight:700; letter-spacing:0.02em;
+  }
+  .brand span{color:var(--rupee);}
+  .gear{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:13px; color:var(--muted); background:none; border:1px solid var(--line);
+    padding:6px 10px; border-radius:20px; cursor:pointer;
+  }
+  main{max-width:480px; margin:0 auto; padding:28px 20px;}
+
+  .mic-wrap{
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    padding:34px 0 30px;
+  }
+  #micBtn{
+    width:96px; height:96px; border-radius:50%;
+    border:none; cursor:pointer;
+    background:var(--rupee);
+    box-shadow:0 6px 0 var(--rupee-dark), 0 10px 18px rgba(0,0,0,0.15);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform 0.08s ease;
+  }
+  #micBtn:active{transform:translateY(4px); box-shadow:0 2px 0 var(--rupee-dark);}
+  #micBtn.listening{
+    background:var(--clay);
+    box-shadow:0 6px 0 #7c3419, 0 10px 18px rgba(0,0,0,0.15);
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{transform:scale(1);}
+    50%{transform:scale(1.06);}
+  }
+  #micBtn svg{width:38px;height:38px;fill:#fff;}
+  .mic-label{
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em;
+  }
+  .transcript{
+    min-height:26px; text-align:center; font-size:17px; font-style:italic;
+    color:var(--ink); padding:0 10px;
+  }
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px; margin-top:18px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card h3{
+    margin:0 0 14px; font-size:14px; text-transform:uppercase; letter-spacing:0.08em;
+    color:var(--muted); font-family:'Helvetica Neue', Arial, sans-serif; font-weight:600;
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block; font-size:12px; color:var(--muted); margin-bottom:5px;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+  }
+  .field input, .field select{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px;
+    font-size:16px; font-family:'Helvetica Neue', Arial, sans-serif; background:#fdfcf9;
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--rupee); outline-offset:1px;}
+
+  .row2{display:flex; gap:12px;}
+  .row2 .field{flex:1;}
+
+  .btn{
+    width:100%; padding:13px; border:none; border-radius:9px;
+    font-family:'Helvetica Neue', Arial, sans-serif; font-size:15px; font-weight:600;
+    cursor:pointer; letter-spacing:0.01em;
+  }
+  .btn-primary{background:var(--rupee); color:#fff; margin-top:4px;}
+  .btn-primary:active{background:var(--rupee-dark);}
+  .btn-ghost{background:none; color:var(--muted); border:1px solid var(--line); margin-top:8px;}
+
+  .status{
+    margin-top:14px; text-align:center; font-size:13px;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    min-height:18px;
+  }
+  .status.ok{color:var(--rupee);}
+  .status.err{color:var(--clay);}
+
+  .log{margin-top:26px;}
+  .log h3{
+    font-size:14px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);
+    font-family:'Helvetica Neue', Arial, sans-serif; font-weight:600; margin-bottom:10px;
+  }
+  .entry{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--line);
+    font-family:'Helvetica Neue', Arial, sans-serif; font-size:14px;
+  }
+  .entry .desc{color:var(--ink);}
+  .entry .cat{color:var(--muted); font-size:12px; display:block;}
+  .entry .amt{color:var(--rupee); font-weight:700;}
+
+  .settings-overlay{
+    position:fixed; inset:0; background:rgba(28,35,33,0.5);
+    display:none; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .settings-overlay.open{display:flex;}
+  .settings-sheet{
+    background:var(--paper); width:100%; max-width:480px;
+    border-radius:18px 18px 0 0; padding:22px 20px 30px; max-height:85vh; overflow-y:auto;
+  }
+  .settings-sheet h2{margin-top:0; font-size:19px;}
+  .settings-sheet p{font-family:'Helvetica Neue', Arial, sans-serif; font-size:13px; color:var(--muted); line-height:1.5;}
+  .hint{font-size:11px; color:var(--muted); font-family:'Helvetica Neue', Arial, sans-serif; margin-top:-8px; margin-bottom:12px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Kharch<span>.</span></div>
+  <button class="gear" id="settingsBtn">Settings</button>
+</div>
+
+<main>
+  <div class="mic-wrap">
+    <button id="micBtn" aria-label="Speak an expense">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <div class="mic-label" id="micLabel">Tap and say your expense</div>
+    <div class="transcript" id="transcript"></div>
+  </div>
+
+  <div class="card" id="confirmCard" style="display:none;">
+    <h3>Confirm entry</h3>
+    <div class="row2">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field">
+        <label>Amount (₹)</label>
+        <input type="number" id="fAmount" inputmode="decimal">
+      </div>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <input type="text" id="fDesc">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Category</label>
+        <select id="fCategory">
+          <option>Food</option>
+          <option>Home</option>
+          <option>Comute</option>
+          <option>Fuel</option>
+          <option>Personal</option>
+          <option>Investment</option>
+          <option>Relative</option>
+          <option>Grocerry</option>
+          <option>Travel</option>
+          <option>Lending</option>
+          <option>Medical</option>
+          <option>Entertainment</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Paid by</label>
+        <select id="fPaidBy">
+          <option>Nirali</option>
+          <option>Dharmik</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="saveBtn">Save to Airtable</button>
+    <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="log">
+    <h3>Recently added (this session)</h3>
+    <div id="logList"></div>
+  </div>
+</main>
+
+<div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-sheet">
+    <h2>Settings</h2>
+    <p>Keys are stored only in this browser (localStorage), never sent anywhere except directly to Google and Airtable's own servers.</p>
+
+    <div class="field">
+      <label>Gemini API key</label>
+      <input type="text" id="geminiKey" placeholder="AIza...">
+    </div>
+    <div class="hint">Get a free key at aistudio.google.com/apikey</div>
+
+    <div class="field">
+      <label>Airtable Personal Access Token</label>
+      <input type="text" id="airtableToken" placeholder="pat...">
+    </div>
+    <div class="hint">airtable.com/create/tokens — needs data.records:read + data.records:write scope on this base</div>
+
+    <div class="field">
+      <label>Airtable Base ID</label>
+      <input type="text" id="airtableBase" placeholder="app...">
+    </div>
+    <div class="hint">Found in your base's API docs (Help → API documentation)</div>
+
+    <div class="field">
+      <label>Table name</label>
+      <input type="text" id="airtableTable" placeholder="Expenses" value="Expenses">
+    </div>
+
+    <button class="btn btn-primary" id="saveSettings">Save settings</button>
+    <button class="btn btn-ghost" id="closeSettings">Close</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ---------- Settings ----------
+function loadSettings(){
+  return {
+    geminiKey: localStorage.getItem('geminiKey') || '',
+    airtableToken: localStorage.getItem('airtableToken') || '',
+    airtableBase: localStorage.getItem('airtableBase') || '',
+    airtableTable: localStorage.getItem('airtableTable') || 'Expenses'
+  };
+}
+function openSettings(){
+  const s = loadSettings();
+  $('geminiKey').value = s.geminiKey;
+  $('airtableToken').value = s.airtableToken;
+  $('airtableBase').value = s.airtableBase;
+  $('airtableTable').value = s.airtableTable;
+  $('settingsOverlay').classList.add('open');
+}
+$('settingsBtn').onclick = openSettings;
+$('closeSettings').onclick = () => $('settingsOverlay').classList.remove('open');
+$('saveSettings').onclick = () => {
+  localStorage.setItem('geminiKey', $('geminiKey').value.trim());
+  localStorage.setItem('airtableToken', $('airtableToken').value.trim());
+  localStorage.setItem('airtableBase', $('airtableBase').value.trim());
+  localStorage.setItem('airtableTable', $('airtableTable').value.trim() || 'Expenses');
+  $('settingsOverlay').classList.remove('open');
+};
+
+// Open settings automatically first run
+window.addEventListener('load', () => {
+  const s = loadSettings();
+  if(!s.geminiKey || !s.airtableToken || !s.airtableBase) openSettings();
+});
+
+// ---------- Speech recognition ----------
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let listening = false;
+
+if(SpeechRecognition){
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-IN';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    $('transcript').textContent = '"' + text + '"';
+    parseWithGemini(text);
+  };
+  recognition.onend = () => setListening(false);
+  recognition.onerror = (e) => {
+    setListening(false);
+    $('transcript').textContent = 'Could not hear that — try again.';
+  };
+} else {
+  $('micLabel').textContent = 'Voice not supported in this browser — use Chrome or Safari';
+}
+
+function setListening(on){
+  listening = on;
+  $('micBtn').classList.toggle('listening', on);
+  $('micLabel').textContent = on ? 'Listening…' : 'Tap and say your expense';
+}
+
+$('micBtn').onclick = () => {
+  const s = loadSettings();
+  if(!s.geminiKey || !s.airtableToken || !s.airtableBase){
+    openSettings();
+    return;
+  }
+  if(!recognition) return;
+  if(listening){
+    recognition.stop();
+    return;
+  }
+  $('transcript').textContent = '';
+  $('confirmCard').style.display = 'none';
+  setListening(true);
+  recognition.start();
+};
+
+// ---------- Gemini parsing ----------
+async function parseWithGemini(text){
+  const s = loadSettings();
+  const today = new Date().toISOString().slice(0,10);
+
+  const prompt = `You extract expense entries from a spoken sentence for a personal budget tracker.
+Return ONLY raw JSON, no markdown fences, no explanation, matching this exact schema:
+{"date":"YYYY-MM-DD","description":"short description","category":"one of: Food, Home, Comute, Fuel, Personal, Investment, Relative, Grocerry, Travel, Lending, Medical, Entertainment, Other","amount": number, "paid_by":"Nirali or Dharmik"}
+
+Rules:
+- Today's date is ${today}. Use it unless the sentence names another date.
+- Default paid_by to "Nirali" unless the sentence explicitly names Dharmik.
+- Infer category sensibly: lunch/dinner/tea/snacks/food items -> Food; petrol/diesel -> Fuel; rapido/uber/bus/auto -> Comute; vegetables/dmart/grocery -> Grocerry; rent/repair/appliance -> Home; sip/mutual fund/stock -> Investment; clothes/personal items -> Personal; movie/outing -> Entertainment; if unclear -> Other.
+- amount must be a plain number, no currency symbols or commas.
+
+Sentence: "${text}"`;
+
+  $('status').textContent = '';
+  $('micLabel').textContent = 'Thinking…';
+
+  try{
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${s.geminiKey}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    });
+    const data = await res.json();
+    let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    raw = raw.trim().replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+    const parsed = JSON.parse(raw);
+    fillConfirmCard(parsed);
+  } catch(err){
+    console.error(err);
+    $('micLabel').textContent = 'Tap and say your expense';
+    $('status').textContent = "Couldn't parse that — check your Gemini key, or fill the form manually below.";
+    $('status').className = 'status err';
+    fillConfirmCard({date: today, description: text, category:'Other', amount:'', paid_by:'Nirali'});
+  }
+}
+
+function fillConfirmCard(p){
+  $('micLabel').textContent = 'Tap and say your expense';
+  $('fDate').value = p.date || new Date().toISOString().slice(0,10);
+  $('fDesc').value = p.description || '';
+  $('fAmount').value = p.amount || '';
+  $('fCategory').value = p.category || 'Other';
+  $('fPaidBy').value = p.paid_by || 'Nirali';
+  $('confirmCard').style.display = 'block';
+  $('confirmCard').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+$('cancelBtn').onclick = () => {
+  $('confirmCard').style.display = 'none';
+  $('transcript').textContent = '';
+};
+
+// ---------- Save to Airtable ----------
+$('saveBtn').onclick = async () => {
+  const s = loadSettings();
+  const record = {
+    fields: {
+      Date: $('fDate').value,
+      Description: $('fDesc').value,
+      Category: $('fCategory').value,
+      'Paid By': $('fPaidBy').value,
+      Amount: parseFloat($('fAmount').value) || 0
+    }
+  };
+
+  $('status').textContent = 'Saving…';
+  $('status').className = 'status';
+  $('saveBtn').disabled = true;
+
+  try{
+    const url = `https://api.airtable.com/v0/${s.airtableBase}/${encodeURIComponent(s.airtableTable)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${s.airtableToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ records: [record] })
+    });
+    if(!res.ok){
+      const errBody = await res.text();
+      throw new Error(errBody);
+    }
+    $('status').textContent = 'Saved ✓';
+    $('status').className = 'status ok';
+    addToLog(record.fields);
+    setTimeout(() => {
+      $('confirmCard').style.display = 'none';
+      $('transcript').textContent = '';
+      $('status').textContent = '';
+    }, 900);
+  } catch(err){
+    console.error(err);
+    $('status').textContent = 'Failed to save — check Airtable token/base/table name in Settings.';
+    $('status').className = 'status err';
+  } finally {
+    $('saveBtn').disabled = false;
+  }
+};
+
+function addToLog(fields){
+  const el = document.createElement('div');
+  el.className = 'entry';
+  el.innerHTML = `
+    <div>
+      <span class="desc">${fields.Description}</span>
+      <span class="cat">${fields.Category} · ${fields['Paid By']} · ${fields.Date}</span>
+    </div>
+    <div class="amt">₹${fields.Amount}</div>
+  `;
+  $('logList').prepend(el);
+}
+</script>
+</body>
+</html>
